@@ -8,7 +8,7 @@ import EmptyState from '../components/ui/EmptyState'
 import { useSupabase } from '../hooks/useSupabase'
 import {
   getCustomers,
-  getShowrooms,
+  getTeams,
   getAgents,
   createCustomer,
   updateCustomer,
@@ -17,18 +17,18 @@ import {
 const STATUS_OPTIONS = ['신규', '상담중', '계약', '보류']
 
 export default function Customers() {
-  const [filters, setFilters] = useState({ search: '', status: '', showroom_id: '', manager: '' })
+  const [filters, setFilters] = useState({ search: '', status: '', team_id: '', manager: '' })
   const { data: customers, loading, refetch } = useSupabase(
-    useCallback(() => getCustomers(filters), [filters.search, filters.status, filters.showroom_id, filters.manager])
+    useCallback(() => getCustomers(filters), [filters])
   )
-  const { data: showrooms } = useSupabase(getShowrooms)
+  const { data: teams } = useSupabase(getTeams)
   const { data: agents } = useSupabase(getAgents)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({
     name: '', phone: '', region: '', content: '', manager: '',
-    status: '신규', memo: '', source: '', showroom_id: '',
+    status: '신규', memo: '', source: '', team_id: '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -36,7 +36,7 @@ export default function Customers() {
     setEditing(null)
     setForm({
       name: '', phone: '', region: '', content: '', manager: '',
-      status: '신규', memo: '', source: '', showroom_id: '',
+      status: '신규', memo: '', source: '', team_id: '',
     })
     setModalOpen(true)
   }
@@ -52,7 +52,7 @@ export default function Customers() {
       status: c.status || '신규',
       memo: c.memo || '',
       source: c.source || '',
-      showroom_id: c.showroom_id || '',
+      team_id: c.team_id || '',
     })
     setModalOpen(true)
   }
@@ -62,7 +62,7 @@ export default function Customers() {
     setSaving(true)
     try {
       const payload = { ...form }
-      if (!payload.showroom_id) payload.showroom_id = null
+      if (!payload.team_id) payload.team_id = null
       if (editing) {
         await updateCustomer(editing.id, payload)
       } else {
@@ -119,13 +119,13 @@ export default function Customers() {
           {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <select
-          value={filters.showroom_id}
-          onChange={e => setFilters(f => ({ ...f, showroom_id: e.target.value }))}
+          value={filters.team_id}
+          onChange={e => setFilters(f => ({ ...f, team_id: e.target.value }))}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none"
         >
-          <option value="">전체 전시장</option>
-          {(showrooms || []).map(s => (
-            <option key={s.id} value={s.id}>{s.name}</option>
+          <option value="">전체 팀</option>
+          {(teams || []).map(t => (
+            <option key={t.id} value={t.id}>{t.name}</option>
           ))}
         </select>
         <select
@@ -148,7 +148,7 @@ export default function Customers() {
               <tr>
                 <th>고객명</th>
                 <th>전화번호</th>
-                <th>전시장</th>
+                <th>팀</th>
                 <th>지역</th>
                 <th>담당자</th>
                 <th>상태</th>
@@ -162,7 +162,7 @@ export default function Customers() {
                 <tr key={c.id}>
                   <td className="font-medium text-gray-900">{c.name || '-'}</td>
                   <td className="text-gray-600">{c.phone}</td>
-                  <td className="text-gray-600">{c.showrooms?.name || '-'}</td>
+                  <td className="text-gray-600">{c.teams?.name || '-'}</td>
                   <td className="text-gray-600">{c.region || '-'}</td>
                   <td className="text-gray-600">{c.manager || '-'}</td>
                   <td><Badge>{c.status}</Badge></td>
@@ -216,15 +216,15 @@ export default function Customers() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">전시장</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">팀</label>
             <select
-              value={form.showroom_id}
-              onChange={e => setForm({ ...form, showroom_id: e.target.value })}
+              value={form.team_id}
+              onChange={e => setForm({ ...form, team_id: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none"
             >
               <option value="">선택</option>
-              {(showrooms || []).map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+              {(teams || []).map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
           </div>

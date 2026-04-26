@@ -6,30 +6,30 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key'
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
 // ──────────────────────────────────────────────
-// Showrooms
+// Teams (팀/지점/부서)
 // ──────────────────────────────────────────────
-export async function getShowrooms() {
+export async function getTeams() {
   const { data, error } = await supabase
-    .from('showrooms')
+    .from('teams')
     .select('*')
     .order('created_at', { ascending: true })
   if (error) throw error
   return data
 }
 
-export async function createShowroom(showroom) {
+export async function createTeam(team) {
   const { data, error } = await supabase
-    .from('showrooms')
-    .insert(showroom)
+    .from('teams')
+    .insert(team)
     .select()
     .single()
   if (error) throw error
   return data
 }
 
-export async function updateShowroom(id, updates) {
+export async function updateTeam(id, updates) {
   const { data, error } = await supabase
-    .from('showrooms')
+    .from('teams')
     .update(updates)
     .eq('id', id)
     .select()
@@ -38,20 +38,20 @@ export async function updateShowroom(id, updates) {
   return data
 }
 
-export async function deleteShowroom(id) {
-  const { error } = await supabase.from('showrooms').delete().eq('id', id)
+export async function deleteTeam(id) {
+  const { error } = await supabase.from('teams').delete().eq('id', id)
   if (error) throw error
 }
 
 // ──────────────────────────────────────────────
-// Sales Agents
+// Sales Agents (영업사원)
 // ──────────────────────────────────────────────
-export async function getAgents(showroomId) {
+export async function getAgents(teamId) {
   let query = supabase
     .from('sales_agents')
-    .select('*, showrooms(name)')
+    .select('*, teams(name)')
     .order('priority', { ascending: true })
-  if (showroomId) query = query.eq('showroom_id', showroomId)
+  if (teamId) query = query.eq('team_id', teamId)
   const { data, error } = await query
   if (error) throw error
   return data
@@ -96,11 +96,11 @@ export async function updateAgentPriorities(agents) {
 export async function getCustomers(filters = {}) {
   let query = supabase
     .from('customers')
-    .select('*, showrooms(name)')
+    .select('*, teams(name)')
     .order('created_at', { ascending: false })
 
   if (filters.status) query = query.eq('status', filters.status)
-  if (filters.showroom_id) query = query.eq('showroom_id', filters.showroom_id)
+  if (filters.team_id) query = query.eq('team_id', filters.team_id)
   if (filters.manager) query = query.ilike('manager', `%${filters.manager}%`)
   if (filters.search) {
     query = query.or(`name.ilike.%${filters.search}%,phone.ilike.%${filters.search}%`)
@@ -148,10 +148,10 @@ export async function updateCustomer(id, updates) {
 export async function getCallLogs(filters = {}) {
   let query = supabase
     .from('call_logs')
-    .select('*, showrooms(name), sales_agents(name)')
+    .select('*, teams(name), sales_agents(name)')
     .order('created_at', { ascending: false })
 
-  if (filters.showroom_id) query = query.eq('showroom_id', filters.showroom_id)
+  if (filters.team_id) query = query.eq('team_id', filters.team_id)
   if (filters.call_status) query = query.eq('call_status', filters.call_status)
   if (filters.missed_only) query = query.eq('call_status', 'missed')
   if (filters.answered_by_agent_id) query = query.eq('answered_by_agent_id', filters.answered_by_agent_id)
@@ -215,17 +215,15 @@ export async function getDashboardStats() {
   const answered = todayCalls?.filter(c => c.call_status === 'answered').length || 0
   const missed = todayCalls?.filter(c => c.call_status === 'missed').length || 0
 
-  // Group by showroom
-  const byShowroom = {}
+  const byTeam = {}
   todayCalls?.forEach(c => {
-    byShowroom[c.showroom_id] = (byShowroom[c.showroom_id] || 0) + 1
+    byTeam[c.team_id] = (byTeam[c.team_id] || 0) + 1
   })
 
-  // Group by agent
   const byAgent = {}
   todayCalls?.filter(c => c.answered_by_agent_id).forEach(c => {
     byAgent[c.answered_by_agent_id] = (byAgent[c.answered_by_agent_id] || 0) + 1
   })
 
-  return { total, answered, missed, byShowroom, byAgent }
+  return { total, answered, missed, byTeam, byAgent }
 }

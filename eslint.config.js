@@ -23,7 +23,17 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'no-unused-vars': [
+        'error',
+        { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^[_A-Z]' },
+      ],
+    },
+  },
+  // 서버리스 함수 / SW 는 node·worker 환경
+  {
+    files: ['api/**/*.{js,jsx}', 'public/sw.js'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.serviceworker },
     },
   },
 ])

@@ -6,10 +6,10 @@ import Badge from '../components/ui/Badge'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
 import { useSupabase } from '../hooks/useSupabase'
-import { getShowrooms, createShowroom, updateShowroom, deleteShowroom } from '../lib/supabase'
+import { getTeams, createTeam, updateTeam, deleteTeam } from '../lib/supabase'
 
-export default function Showrooms() {
-  const { data: showrooms, loading, refetch } = useSupabase(getShowrooms)
+export default function Teams() {
+  const { data: teams, loading, refetch } = useSupabase(getTeams)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({ name: '', code: '', is_active: true })
@@ -21,9 +21,9 @@ export default function Showrooms() {
     setModalOpen(true)
   }
 
-  const openEdit = (s) => {
-    setEditing(s)
-    setForm({ name: s.name, code: s.code, is_active: s.is_active })
+  const openEdit = (t) => {
+    setEditing(t)
+    setForm({ name: t.name, code: t.code, is_active: t.is_active })
     setModalOpen(true)
   }
 
@@ -32,9 +32,9 @@ export default function Showrooms() {
     setSaving(true)
     try {
       if (editing) {
-        await updateShowroom(editing.id, form)
+        await updateTeam(editing.id, form)
       } else {
-        await createShowroom(form)
+        await createTeam(form)
       }
       setModalOpen(false)
       refetch()
@@ -48,16 +48,16 @@ export default function Showrooms() {
   const handleDelete = async (id) => {
     if (!confirm('정말 삭제하시겠습니까?')) return
     try {
-      await deleteShowroom(id)
+      await deleteTeam(id)
       refetch()
     } catch (err) {
       alert('삭제 실패: ' + err.message)
     }
   }
 
-  const toggleActive = async (s) => {
+  const toggleActive = async (t) => {
     try {
-      await updateShowroom(s.id, { is_active: !s.is_active })
+      await updateTeam(t.id, { is_active: !t.is_active })
       refetch()
     } catch (err) {
       alert('상태 변경 실패: ' + err.message)
@@ -69,27 +69,27 @@ export default function Showrooms() {
   return (
     <div>
       <PageHeader
-        title="전시장 관리"
-        description="전시장 등록 및 활성/비활성 관리"
+        title="팀 관리"
+        description="팀/지점/부서 등록 및 활성/비활성 관리"
         actions={
           <button
             onClick={openCreate}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
           >
             <Plus size={16} />
-            전시장 추가
+            팀 추가
           </button>
         }
       />
 
-      {!showrooms || showrooms.length === 0 ? (
-        <EmptyState message="등록된 전시장이 없습니다." icon={Building2} />
+      {!teams || teams.length === 0 ? (
+        <EmptyState message="등록된 팀이 없습니다." icon={Building2} />
       ) : (
         <div className="table-container">
           <table>
             <thead>
               <tr>
-                <th>전시장명</th>
+                <th>팀명</th>
                 <th>코드</th>
                 <th>상태</th>
                 <th>등록일</th>
@@ -97,15 +97,15 @@ export default function Showrooms() {
               </tr>
             </thead>
             <tbody>
-              {showrooms.map(s => (
-                <tr key={s.id}>
-                  <td className="font-medium text-gray-900">{s.name}</td>
+              {teams.map(t => (
+                <tr key={t.id}>
+                  <td className="font-medium text-gray-900">{t.name}</td>
                   <td>
-                    <code className="text-xs bg-gray-100 px-2 py-0.5 rounded">{s.code}</code>
+                    <code className="text-xs bg-gray-100 px-2 py-0.5 rounded">{t.code}</code>
                   </td>
                   <td>
-                    <button onClick={() => toggleActive(s)} className="flex items-center gap-1">
-                      {s.is_active ? (
+                    <button onClick={() => toggleActive(t)} className="flex items-center gap-1">
+                      {t.is_active ? (
                         <>
                           <ToggleRight size={20} className="text-emerald-500" />
                           <Badge variant="success">활성</Badge>
@@ -118,18 +118,18 @@ export default function Showrooms() {
                       )}
                     </button>
                   </td>
-                  <td>{new Date(s.created_at).toLocaleDateString('ko-KR')}</td>
+                  <td>{new Date(t.created_at).toLocaleDateString('ko-KR')}</td>
                   <td>
                     <div className="flex items-center justify-end gap-1">
                       <button
-                        onClick={() => openEdit(s)}
+                        onClick={() => openEdit(t)}
                         className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                         title="수정"
                       >
                         <Pencil size={15} className="text-gray-500" />
                       </button>
                       <button
-                        onClick={() => handleDelete(s.id)}
+                        onClick={() => handleDelete(t.id)}
                         className="p-1.5 rounded-lg hover:bg-red-50 transition-colors"
                         title="삭제"
                       >
@@ -144,33 +144,32 @@ export default function Showrooms() {
         </div>
       )}
 
-      {/* 등록/수정 모달 */}
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editing ? '전시장 수정' : '전시장 추가'}
+        title={editing ? '팀 수정' : '팀 추가'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">전시장명</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">팀명</label>
             <input
               type="text"
               required
               value={form.name}
               onChange={e => setForm({ ...form, name: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-              placeholder="예: 김포전시장"
+              placeholder="예: 영업1팀"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">전시장 코드</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">팀 코드</label>
             <input
               type="text"
               required
               value={form.code}
               onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
-              placeholder="예: GIMPO"
+              placeholder="예: SALES-1"
             />
           </div>
           <div className="flex items-center gap-2">

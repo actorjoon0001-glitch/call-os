@@ -1,33 +1,14 @@
 /**
  * CALL-OS 전화 라우팅 엔진
  *
- * 대표번호 인바운드 → 전시장 선택 → 순차 연결 → 전체 동시 울림
+ * 대표번호 인바운드 → ARS 메뉴 → 팀 선택 → 순차 연결 → 전체 동시 울림
  *
- * 이 모듈은 텔레포니 API(Twilio, Vonage, 세종텔레콤 등)와
+ * 이 모듈은 통신사/텔레포니 API(Twilio, 세종텔레콤, KT 등)와
  * 독립적으로 동작하는 라우팅 로직을 담당한다.
- * 실제 전화 발신/수신은 telephonyAdapter를 통해 처리된다.
+ * 실제 통신은 telephony adapter를 통해 처리된다.
  */
 
 import { supabase, getCustomerByPhone, createCustomer, createCallLog } from './supabase'
-
-// ──────────────────────────────────────────────
-// ARS 메뉴 매핑
-// ──────────────────────────────────────────────
-export const ARS_MENU = {
-  '1': 'GIMPO',    // 김포전시장
-  '2': 'GANGHWA',  // 강화전시장
-  '3': 'SEOUL',    // 서울전시장
-  '4': 'ETC',      // 기타문의
-}
-
-export const ARS_GREETING = `
-안녕하세요, 세움건설입니다.
-원하시는 전시장 번호를 눌러주세요.
-1번 김포전시장,
-2번 강화전시장,
-3번 서울전시장,
-4번 기타문의
-`.trim()
 
 // ──────────────────────────────────────────────
 // 라우팅 설정
@@ -36,8 +17,37 @@ const RING_TIMEOUT_SECONDS = 15   // 약 5회 벨 울림 ≒ 15초
 const MAX_SEQUENTIAL_ATTEMPTS = 10 // 최대 순차 시도 수
 
 // ──────────────────────────────────────────────
+// 동적 ARS 멘트 생성
+// 활성 팀 목록을 받아 메뉴 안내 멘트를 생성한다
+// ──────────────────────────────────────────────
+export function buildArsGreeting(teams, options = {}) {
+  const { companyName = '안내', etcMenuNumber = null } = options
+  const lines = [`안녕하세요, ${companyName}입니다.`, '원하시는 메뉴 번호를 눌러주세요.']
+  teams.forEach((t, idx) => {
+    lines.push(`${idx + 1}번 ${t.name},`)
+  })
+  if (etcMenuNumber) {
+    lines.push(`${etcMenuNumber}번 기타문의`)
+  }
+  return lines.join('\n').trim()
+}
+
+/**
+ * 활성 팀 목록 → ARS 메뉴 매핑 (입력번호 → 팀)
+ * @param {Array} teams - is_active=true인 팀 배열
+ * @returns {Object} { '1': team, '2': team, ... }
+ */
+export function buildArsMenu(teams) {
+  const menu = {}
+  teams.forEach((t, idx) => {
+    menu[String(idx + 1)] = t
+  })
+  return menu
+}
+
+// ──────────────────────────────────────────────
 // 텔레포니 어댑터 인터페이스 (추상)
-// 실제 구현 시 Twilio/Vonage 등 SDK로 교체
+// 실제 구현 시 Twilio/세종텔레콤/KT 등으로 교체
 // ──────────────────────────────────────────────
 const defaultTelephonyAdapter = {
   /**
@@ -46,7 +56,6 @@ const defaultTelephonyAdapter = {
    */
   async callSingle(fromNumber, toPhone, timeoutSec) {
     console.log(`[TEL] Calling ${toPhone} (timeout: ${timeoutSec}s)`)
-    // 실제 구현: Twilio client.calls.create({...})
     return { answered: false, duration: 0 }
   },
 
@@ -56,7 +65,6 @@ const defaultTelephonyAdapter = {
    */
   async callBroadcast(fromNumber, toPhones, timeoutSec) {
     console.log(`[TEL] Broadcasting to ${toPhones.join(', ')} (timeout: ${timeoutSec}s)`)
-    // 실제 구현: Promise.race 또는 Twilio Conference
     return { answered: false, answeredPhone: null, duration: 0 }
   },
 
@@ -66,7 +74,7 @@ const defaultTelephonyAdapter = {
    */
   async playIVRAndCollectInput(callSid, message) {
     console.log(`[TEL] Playing IVR: ${message}`)
-    return '1' // 시뮬레이션: 1번 선택
+    return '1'
   }
 }
 
@@ -77,14 +85,20 @@ const defaultTelephonyAdapter = {
 /**
  * 인바운드 콜 처리 메인 함수
  * @param {string} customerPhone - 고객 전화번호
- * @param {object} telephony - 텔레포니 어댑터 (선택)
+ * @param {string} callSid - 통화 식별자
+ * @param {object} options - { telephony, companyName }
  * @returns {object} 라우팅 결과
  */
-export async function handleInboundCall(customerPhone, callSid, telephony = defaultTelephonyAdapter) {
+export async function handleInboundCall(customerPhone, callSid, options = {}) {
+  const {
+    telephony = defaultTelephonyAdapter,
+    companyName = '안내',
+  } = options
+
   const result = {
     customerPhone,
-    showroomCode: null,
-    showroomId: null,
+    teamCode: null,
+    teamId: null,
     attempts: [],
     finalAgent: null,
     broadcastTriggered: false,
@@ -92,40 +106,41 @@ export async function handleInboundCall(customerPhone, callSid, telephony = defa
   }
 
   try {
-    // 1. ARS 메뉴 재생 → 전시장 선택
-    const menuInput = await telephony.playIVRAndCollectInput(callSid, ARS_GREETING)
-    const showroomCode = ARS_MENU[menuInput]
-
-    if (!showroomCode || showroomCode === 'ETC') {
-      result.showroomCode = showroomCode || 'UNKNOWN'
-      result.status = showroomCode === 'ETC' ? 'answered' : 'failed'
-      await saveCallLog(result)
-      return result
-    }
-
-    result.showroomCode = showroomCode
-
-    // 2. 해당 전시장 정보 조회
-    const { data: showroom } = await supabase
-      .from('showrooms')
-      .select('id')
-      .eq('code', showroomCode)
+    // 1. 활성 팀 조회 → 동적 ARS 멘트 생성
+    const { data: activeTeams } = await supabase
+      .from('teams')
+      .select('*')
       .eq('is_active', true)
-      .single()
+      .order('created_at', { ascending: true })
 
-    if (!showroom) {
+    if (!activeTeams || activeTeams.length === 0) {
       result.status = 'failed'
       await saveCallLog(result)
       return result
     }
 
-    result.showroomId = showroom.id
+    const greeting = buildArsGreeting(activeTeams, { companyName })
+    const menu = buildArsMenu(activeTeams)
 
-    // 3. 해당 전시장 영업팀원 조회 (우선순위순)
+    // 2. ARS 멘트 재생 → 메뉴 선택
+    const menuInput = await telephony.playIVRAndCollectInput(callSid, greeting)
+    const selectedTeam = menu[menuInput]
+
+    if (!selectedTeam) {
+      result.teamCode = 'UNKNOWN'
+      result.status = 'failed'
+      await saveCallLog(result)
+      return result
+    }
+
+    result.teamCode = selectedTeam.code
+    result.teamId = selectedTeam.id
+
+    // 3. 해당 팀 영업사원 조회 (우선순위순)
     const { data: agents } = await supabase
       .from('sales_agents')
       .select('*')
-      .eq('showroom_id', showroom.id)
+      .eq('team_id', selectedTeam.id)
       .eq('is_active', true)
       .order('priority', { ascending: true })
 
@@ -159,7 +174,7 @@ export async function handleInboundCall(customerPhone, callSid, telephony = defa
         result.finalAgent = agent
         result.status = 'answered'
         await saveCallLog(result)
-        await upsertCustomer(customerPhone, showroom.id, agent.name)
+        await upsertCustomer(customerPhone, selectedTeam.id, agent.name)
         return result
       }
     }
@@ -178,9 +193,11 @@ export async function handleInboundCall(customerPhone, callSid, telephony = defa
       const answeredAgent = agents.find(a => a.phone === broadcastResult.answeredPhone)
       result.finalAgent = answeredAgent || null
       result.status = 'answered'
-      await upsertCustomer(customerPhone, showroom.id, answeredAgent?.name)
+      await upsertCustomer(customerPhone, selectedTeam.id, answeredAgent?.name)
     } else {
       result.status = 'missed'
+      // 부재중이라도 발신자 정보는 DB에 확보
+      await upsertCustomer(customerPhone, selectedTeam.id, null)
     }
 
     await saveCallLog(result)
@@ -201,8 +218,8 @@ async function saveCallLog(result) {
   try {
     await createCallLog({
       customer_phone: result.customerPhone,
-      showroom_id: result.showroomId,
-      selected_menu: result.showroomCode,
+      team_id: result.teamId,
+      selected_menu: result.teamCode,
       call_status: result.status,
       answered_by_agent_id: result.finalAgent?.id || null,
       ring_attempt_count: result.attempts.length,
@@ -214,26 +231,21 @@ async function saveCallLog(result) {
 }
 
 // ──────────────────────────────────────────────
-// 고객 자동 생성/업데이트
+// 고객 자동 생성/업데이트 (대표번호로 들어온 발신자 정보 즉시 DB화)
 // ──────────────────────────────────────────────
-async function upsertCustomer(phone, showroomId, managerName) {
+async function upsertCustomer(phone, teamId, managerName) {
+  if (!phone) return
   try {
     const existing = await getCustomerByPhone(phone)
     if (existing) {
-      // 기존 고객: 담당자/전시장 업데이트
-      await supabase
-        .from('customers')
-        .update({
-          manager: managerName,
-          showroom_id: showroomId,
-        })
-        .eq('id', existing.id)
+      const updates = { team_id: teamId }
+      if (managerName) updates.manager = managerName
+      await supabase.from('customers').update(updates).eq('id', existing.id)
     } else {
-      // 신규 고객 자동 생성
       await createCustomer({
         phone,
         status: '신규',
-        showroom_id: showroomId,
+        team_id: teamId,
         manager: managerName,
         source: '인바운드콜',
       })
@@ -244,15 +256,15 @@ async function upsertCustomer(phone, showroomId, managerName) {
 }
 
 // ──────────────────────────────────────────────
-// 시뮬레이션 (데모/테스트용)
+// Mock 어댑터 (데모/테스트용)
 // ──────────────────────────────────────────────
 export function createMockTelephonyAdapter(scenario = 'second_agent_answers') {
   let callCount = 0
 
   return {
-    async callSingle(from, to, timeout) {
+    async callSingle(_from, _to, _timeout) {
       callCount++
-      await new Promise(r => setTimeout(r, 500)) // 시뮬레이션 딜레이
+      await new Promise(r => setTimeout(r, 500))
 
       if (scenario === 'first_agent_answers' && callCount === 1) {
         return { answered: true, duration: 120 }
@@ -266,7 +278,7 @@ export function createMockTelephonyAdapter(scenario = 'second_agent_answers') {
       return { answered: false, duration: 0 }
     },
 
-    async callBroadcast(from, toPhones, timeout) {
+    async callBroadcast(_from, toPhones, _timeout) {
       await new Promise(r => setTimeout(r, 800))
       if (scenario === 'broadcast_answers') {
         return { answered: true, answeredPhone: toPhones[1], duration: 60 }
@@ -274,8 +286,8 @@ export function createMockTelephonyAdapter(scenario = 'second_agent_answers') {
       return { answered: false, answeredPhone: null, duration: 0 }
     },
 
-    async playIVRAndCollectInput(callSid, message) {
-      return '1' // 기본: 김포전시장 선택
+    async playIVRAndCollectInput(_callSid, _message) {
+      return '1'
     }
   }
 }

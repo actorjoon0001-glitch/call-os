@@ -5,7 +5,7 @@ import Badge from '../components/ui/Badge'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
 import { useSupabase } from '../hooks/useSupabase'
-import { getCallLogs, getShowrooms, getAgents } from '../lib/supabase'
+import { getCallLogs, getTeams, getAgents } from '../lib/supabase'
 
 const CALL_STATUS_LABEL = {
   answered: '응답완료',
@@ -17,21 +17,16 @@ const CALL_STATUS_LABEL = {
 
 export default function CallLogs() {
   const [filters, setFilters] = useState({
-    showroom_id: '',
+    team_id: '',
     call_status: '',
     missed_only: false,
     answered_by_agent_id: '',
   })
 
   const { data: logs, loading } = useSupabase(
-    useCallback(() => getCallLogs(filters), [
-      filters.showroom_id,
-      filters.call_status,
-      filters.missed_only,
-      filters.answered_by_agent_id,
-    ])
+    useCallback(() => getCallLogs(filters), [filters])
   )
-  const { data: showrooms } = useSupabase(getShowrooms)
+  const { data: teams } = useSupabase(getTeams)
   const { data: agents } = useSupabase(getAgents)
 
   if (loading) return <LoadingSpinner />
@@ -46,13 +41,13 @@ export default function CallLogs() {
       {/* 필터 */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <select
-          value={filters.showroom_id}
-          onChange={e => setFilters(f => ({ ...f, showroom_id: e.target.value }))}
+          value={filters.team_id}
+          onChange={e => setFilters(f => ({ ...f, team_id: e.target.value }))}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none"
         >
-          <option value="">전체 전시장</option>
-          {(showrooms || []).map(s => (
-            <option key={s.id} value={s.id}>{s.name}</option>
+          <option value="">전체 팀</option>
+          {(teams || []).map(t => (
+            <option key={t.id} value={t.id}>{t.name}</option>
           ))}
         </select>
 
@@ -105,7 +100,7 @@ export default function CallLogs() {
               <tr>
                 <th>시간</th>
                 <th>고객 번호</th>
-                <th>전시장</th>
+                <th>팀</th>
                 <th>선택 메뉴</th>
                 <th>시도 횟수</th>
                 <th>동시울림</th>
@@ -120,7 +115,7 @@ export default function CallLogs() {
                     {new Date(log.created_at).toLocaleString('ko-KR')}
                   </td>
                   <td className="font-medium text-gray-900">{log.customer_phone}</td>
-                  <td className="text-gray-600">{log.showrooms?.name || '-'}</td>
+                  <td className="text-gray-600">{log.teams?.name || '-'}</td>
                   <td>
                     {log.selected_menu ? (
                       <code className="text-xs bg-gray-100 px-2 py-0.5 rounded">

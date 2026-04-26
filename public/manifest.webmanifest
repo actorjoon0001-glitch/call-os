@@ -1,0 +1,22 @@
+{
+  "name": "CALL-OS",
+  "short_name": "CALL-OS",
+  "description": "기업용 고객전화 관리 — 대표번호 기반 자동 고객 DB 확보",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "lang": "ko-KR",
+  "dir": "ltr",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
