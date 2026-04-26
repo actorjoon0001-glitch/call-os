@@ -15,8 +15,8 @@ import { useState } from 'react'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: '대시보드' },
-  { to: '/showrooms', icon: Building2, label: '전시장 관리' },
-  { to: '/agents', icon: Users, label: '영업팀원 관리' },
+  { to: '/teams', icon: Building2, label: '팀 관리' },
+  { to: '/agents', icon: Users, label: '영업사원 관리' },
   { to: '/customers', icon: UserCircle, label: '고객 관리' },
   { to: '/call-logs', icon: Phone, label: '통화 로그' },
   { to: '/consult-logs', icon: MessageSquare, label: '상담 이력' },
@@ -59,7 +59,7 @@ export default function Sidebar() {
           </div>
           <div>
             <h1 className="text-lg font-bold tracking-tight">CALL-OS</h1>
-            <p className="text-xs text-gray-400">고객전화 분배 시스템</p>
+            <p className="text-xs text-gray-400">기업용 고객전화 관리</p>
           </div>
         </div>
 
@@ -87,8 +87,8 @@ export default function Sidebar() {
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-700">
-          <p className="text-xs text-gray-500">CALL-OS v1.0 MVP</p>
-          <p className="text-xs text-gray-500">세움건설 전화분배 시스템</p>
+          <p className="text-xs text-gray-500">CALL-OS v1.0</p>
+          <p className="text-xs text-gray-500">대표번호 + 영업사원 앱</p>
         </div>
       </aside>
     </>

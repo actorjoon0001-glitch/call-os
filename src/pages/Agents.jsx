@@ -8,7 +8,7 @@ import EmptyState from '../components/ui/EmptyState'
 import { useSupabase } from '../hooks/useSupabase'
 import {
   getAgents,
-  getShowrooms,
+  getTeams,
   createAgent,
   updateAgent,
   deleteAgent,
@@ -17,14 +17,14 @@ import {
 
 export default function Agents() {
   const { data: agents, loading: loadingAgents, refetch } = useSupabase(getAgents)
-  const { data: showrooms, loading: loadingSR } = useSupabase(getShowrooms)
+  const { data: teams, loading: loadingTeams } = useSupabase(getTeams)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [filterShowroom, setFilterShowroom] = useState('')
+  const [filterTeam, setFilterTeam] = useState('')
   const [form, setForm] = useState({
     name: '',
     phone: '',
-    showroom_id: '',
+    team_id: '',
     priority: 1,
     is_active: true,
   })
@@ -32,7 +32,7 @@ export default function Agents() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', phone: '', showroom_id: '', priority: 1, is_active: true })
+    setForm({ name: '', phone: '', team_id: '', priority: 1, is_active: true })
     setModalOpen(true)
   }
 
@@ -41,7 +41,7 @@ export default function Agents() {
     setForm({
       name: a.name,
       phone: a.phone,
-      showroom_id: a.showroom_id,
+      team_id: a.team_id,
       priority: a.priority,
       is_active: a.is_active,
     })
@@ -76,58 +76,56 @@ export default function Agents() {
     }
   }
 
-  const movePriority = async (showroomId, agentId, direction) => {
-    const srAgents = (agents || [])
-      .filter(a => a.showroom_id === showroomId)
+  const movePriority = async (teamId, agentId, direction) => {
+    const teamAgents = (agents || [])
+      .filter(a => a.team_id === teamId)
       .sort((a, b) => a.priority - b.priority)
 
-    const idx = srAgents.findIndex(a => a.id === agentId)
+    const idx = teamAgents.findIndex(a => a.id === agentId)
     if (idx < 0) return
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1
-    if (swapIdx < 0 || swapIdx >= srAgents.length) return
+    if (swapIdx < 0 || swapIdx >= teamAgents.length) return
 
-    // Swap
-    const temp = srAgents[idx]
-    srAgents[idx] = srAgents[swapIdx]
-    srAgents[swapIdx] = temp
+    const temp = teamAgents[idx]
+    teamAgents[idx] = teamAgents[swapIdx]
+    teamAgents[swapIdx] = temp
 
     try {
-      await updateAgentPriorities(srAgents)
+      await updateAgentPriorities(teamAgents)
       refetch()
     } catch (err) {
       alert('순서 변경 실패: ' + err.message)
     }
   }
 
-  if (loadingAgents || loadingSR) return <LoadingSpinner />
+  if (loadingAgents || loadingTeams) return <LoadingSpinner />
 
-  const filtered = filterShowroom
-    ? agents?.filter(a => a.showroom_id === filterShowroom)
+  const filtered = filterTeam
+    ? agents?.filter(a => a.team_id === filterTeam)
     : agents
 
-  const showroomMap = Object.fromEntries((showrooms || []).map(s => [s.id, s.name]))
+  const teamMap = Object.fromEntries((teams || []).map(t => [t.id, t.name]))
 
-  // Group by showroom for display
   const grouped = {}
   ;(filtered || []).forEach(a => {
-    const srName = showroomMap[a.showroom_id] || '미지정'
-    if (!grouped[srName]) grouped[srName] = []
-    grouped[srName].push(a)
+    const tName = teamMap[a.team_id] || '미지정'
+    if (!grouped[tName]) grouped[tName] = []
+    grouped[tName].push(a)
   })
   Object.values(grouped).forEach(arr => arr.sort((a, b) => a.priority - b.priority))
 
   return (
     <div>
       <PageHeader
-        title="영업팀원 관리"
-        description="전시장별 영업팀원 및 순차 연결 순서 관리"
+        title="영업사원 관리"
+        description="팀별 영업사원 및 순차 연결 순서 관리"
         actions={
           <button
             onClick={openCreate}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
           >
             <Plus size={16} />
-            팀원 추가
+            영업사원 추가
           </button>
         }
       />
@@ -135,27 +133,27 @@ export default function Agents() {
       {/* Filter */}
       <div className="flex items-center gap-3 mb-4">
         <select
-          value={filterShowroom}
-          onChange={e => setFilterShowroom(e.target.value)}
+          value={filterTeam}
+          onChange={e => setFilterTeam(e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none"
         >
-          <option value="">전체 전시장</option>
-          {(showrooms || []).map(s => (
-            <option key={s.id} value={s.id}>{s.name}</option>
+          <option value="">전체 팀</option>
+          {(teams || []).map(t => (
+            <option key={t.id} value={t.id}>{t.name}</option>
           ))}
         </select>
       </div>
 
       {Object.keys(grouped).length === 0 ? (
-        <EmptyState message="등록된 영업팀원이 없습니다." icon={Users} />
+        <EmptyState message="등록된 영업사원이 없습니다." icon={Users} />
       ) : (
         <div className="space-y-6">
-          {Object.entries(grouped).map(([srName, srAgents]) => (
-            <div key={srName}>
+          {Object.entries(grouped).map(([tName, teamAgents]) => (
+            <div key={tName}>
               <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                 <GripVertical size={14} className="text-gray-400" />
-                {srName}
-                <Badge variant="info">{srAgents.length}명</Badge>
+                {tName}
+                <Badge variant="info">{teamAgents.length}명</Badge>
               </h3>
               <div className="table-container">
                 <table>
@@ -170,7 +168,7 @@ export default function Agents() {
                     </tr>
                   </thead>
                   <tbody>
-                    {srAgents.map((a, idx) => (
+                    {teamAgents.map((a, idx) => (
                       <tr key={a.id}>
                         <td>
                           <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary-light text-primary font-bold text-xs">
@@ -187,7 +185,7 @@ export default function Agents() {
                         <td>
                           <div className="flex items-center gap-1">
                             <button
-                              onClick={() => movePriority(a.showroom_id, a.id, 'up')}
+                              onClick={() => movePriority(a.team_id, a.id, 'up')}
                               disabled={idx === 0}
                               className="p-1 rounded hover:bg-gray-100 disabled:opacity-30"
                               title="위로"
@@ -195,8 +193,8 @@ export default function Agents() {
                               <ArrowUp size={14} className="text-gray-500" />
                             </button>
                             <button
-                              onClick={() => movePriority(a.showroom_id, a.id, 'down')}
-                              disabled={idx === srAgents.length - 1}
+                              onClick={() => movePriority(a.team_id, a.id, 'down')}
+                              disabled={idx === teamAgents.length - 1}
                               className="p-1 rounded hover:bg-gray-100 disabled:opacity-30"
                               title="아래로"
                             >
@@ -236,7 +234,7 @@ export default function Agents() {
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editing ? '팀원 수정' : '팀원 추가'}
+        title={editing ? '영업사원 수정' : '영업사원 추가'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -262,16 +260,16 @@ export default function Agents() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">소속 전시장</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">소속 팀</label>
             <select
               required
-              value={form.showroom_id}
-              onChange={e => setForm({ ...form, showroom_id: e.target.value })}
+              value={form.team_id}
+              onChange={e => setForm({ ...form, team_id: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none"
             >
-              <option value="">전시장 선택</option>
-              {(showrooms || []).map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+              <option value="">팀 선택</option>
+              {(teams || []).map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
           </div>

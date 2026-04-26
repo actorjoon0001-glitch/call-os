@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import Dashboard from './pages/Dashboard'
-import Showrooms from './pages/Showrooms'
+import Teams from './pages/Teams'
 import Agents from './pages/Agents'
 import Customers from './pages/Customers'
 import CallLogs from './pages/CallLogs'
@@ -13,7 +13,7 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/showrooms" element={<Showrooms />} />
+          <Route path="/teams" element={<Teams />} />
           <Route path="/agents" element={<Agents />} />
           <Route path="/customers" element={<Customers />} />
           <Route path="/call-logs" element={<CallLogs />} />

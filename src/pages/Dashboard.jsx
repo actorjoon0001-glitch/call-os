@@ -4,27 +4,27 @@ import PageHeader from '../components/ui/PageHeader'
 import StatCard from '../components/ui/StatCard'
 import Badge from '../components/ui/Badge'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
-import { getDashboardStats, getCallLogs, getShowrooms, getAgents } from '../lib/supabase'
+import { getDashboardStats, getCallLogs, getTeams, getAgents } from '../lib/supabase'
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null)
   const [recentCalls, setRecentCalls] = useState([])
-  const [showrooms, setShowrooms] = useState([])
+  const [teams, setTeams] = useState([])
   const [agents, setAgents] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
       try {
-        const [s, calls, sr, ag] = await Promise.all([
+        const [s, calls, tm, ag] = await Promise.all([
           getDashboardStats(),
           getCallLogs(),
-          getShowrooms(),
+          getTeams(),
           getAgents(),
         ])
         setStats(s)
         setRecentCalls(calls?.slice(0, 10) || [])
-        setShowrooms(sr || [])
+        setTeams(tm || [])
         setAgents(ag || [])
       } catch (e) {
         console.error(e)
@@ -37,13 +37,10 @@ export default function Dashboard() {
 
   if (loading) return <LoadingSpinner />
 
-  const showroomMap = Object.fromEntries(showrooms.map(s => [s.id, s.name]))
-  const agentMap = Object.fromEntries(agents.map(a => [a.id, a.name]))
-
-  // 전시장별 통화 수
-  const showroomStats = showrooms.map(s => ({
-    name: s.name,
-    count: stats?.byShowroom?.[s.id] || 0,
+  // 팀별 통화 수
+  const teamStats = teams.map(t => ({
+    name: t.name,
+    count: stats?.byTeam?.[t.id] || 0,
   }))
 
   // 담당자별 응답 수
@@ -97,30 +94,30 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* 전시장별 통화 현황 */}
+        {/* 팀별 통화 현황 */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
             <Building2 size={16} />
-            전시장별 통화 수
+            팀별 통화 수
           </h3>
-          {showroomStats.length === 0 ? (
+          {teamStats.length === 0 ? (
             <p className="text-sm text-gray-400">데이터 없음</p>
           ) : (
             <div className="space-y-3">
-              {showroomStats.map(s => (
-                <div key={s.name} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">{s.name}</span>
+              {teamStats.map(t => (
+                <div key={t.name} className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">{t.name}</span>
                   <div className="flex items-center gap-2">
                     <div className="w-32 bg-gray-100 rounded-full h-2">
                       <div
                         className="bg-primary rounded-full h-2 transition-all"
                         style={{
-                          width: `${stats?.total ? (s.count / stats.total) * 100 : 0}%`,
+                          width: `${stats?.total ? (t.count / stats.total) * 100 : 0}%`,
                         }}
                       />
                     </div>
                     <span className="text-sm font-semibold text-gray-900 w-8 text-right">
-                      {s.count}
+                      {t.count}
                     </span>
                   </div>
                 </div>
@@ -176,7 +173,7 @@ export default function Dashboard() {
                 <tr>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">시간</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">고객번호</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">전시장</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">팀</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">응답자</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">상태</th>
                 </tr>
@@ -189,7 +186,7 @@ export default function Dashboard() {
                     </td>
                     <td className="px-4 py-3 text-gray-900 font-medium">{call.customer_phone}</td>
                     <td className="px-4 py-3 text-gray-600">
-                      {call.showrooms?.name || call.selected_menu || '-'}
+                      {call.teams?.name || call.selected_menu || '-'}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       {call.sales_agents?.name || '-'}
