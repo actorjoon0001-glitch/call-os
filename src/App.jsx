@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Layout from './components/layout/Layout'
+import MyDay from './pages/MyDay'
 import Dashboard from './pages/Dashboard'
 import Teams from './pages/Teams'
 import Agents from './pages/Agents'
@@ -12,7 +13,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<MyDay />} />
+          <Route path="/admin" element={<Dashboard />} />
           <Route path="/teams" element={<Teams />} />
           <Route path="/agents" element={<Agents />} />
           <Route path="/customers" element={<Customers />} />

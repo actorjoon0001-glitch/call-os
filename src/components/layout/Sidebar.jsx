@@ -6,15 +6,16 @@ import {
   UserCircle,
   Phone,
   MessageSquare,
-  Settings,
   PhoneCall,
   Menu,
   X,
+  Briefcase,
 } from 'lucide-react'
 import { useState } from 'react'
 
 const navItems = [
-  { to: '/', icon: LayoutDashboard, label: '대시보드' },
+  { to: '/', icon: Briefcase, label: '내 업무', end: true },
+  { to: '/admin', icon: LayoutDashboard, label: '대시보드' },
   { to: '/teams', icon: Building2, label: '팀 관리' },
   { to: '/agents', icon: Users, label: '영업사원 관리' },
   { to: '/customers', icon: UserCircle, label: '고객 관리' },
@@ -65,11 +66,11 @@ export default function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {navItems.map(({ to, icon: Icon, label }) => (
+          {navItems.map(({ to, icon: Icon, label, end }) => (
             <NavLink
               key={to}
               to={to}
-              end={to === '/'}
+              end={end || to === '/'}
               onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
