@@ -30,6 +30,7 @@ Supabase 콘솔에서 `supabase/migrations/` 의 SQL을 순서대로 실행:
 
 1. `001_init.sql` — 초기 스키마
 2. `002_rename_showroom_to_team.sql` — 팀 개념으로 리네임 + 시드 정리
+3. `003_company_settings.sql` — 회사·대표번호 통합 운영설정 (싱글톤)
 
 > 🔧 신규 설치 환경이면 두 파일을 차례로 적용하면 깨끗한 스키마가 만들어진다.
 

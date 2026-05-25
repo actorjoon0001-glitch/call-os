@@ -27,10 +27,36 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-const COMPANY_NAME = process.env.COMPANY_NAME || '안내'
-const RING_TIMEOUT = parseInt(process.env.RING_TIMEOUT_SECONDS || '15', 10)
+const ENV_COMPANY_NAME = process.env.COMPANY_NAME || '안내'
+const ENV_RING_TIMEOUT = parseInt(process.env.RING_TIMEOUT_SECONDS || '15', 10)
 
 const adapter = getAdapter()
+
+// ──────────────────────────────────────────────
+// 회사 설정 (DB 우선, ENV 폴백)
+// company_settings.id=1 싱글톤 행에서 읽음
+// ──────────────────────────────────────────────
+async function fetchCompanySettings() {
+  const { data } = await supabase
+    .from('company_settings')
+    .select('*')
+    .eq('id', 1)
+    .maybeSingle()
+  return {
+    company_name: data?.company_name || ENV_COMPANY_NAME,
+    main_phone: data?.main_phone || process.env.TWILIO_PHONE_NUMBER || null,
+    ars_greeting: data?.ars_greeting || null,
+    ars_after_menu_message:
+      data?.ars_after_menu_message || '잠시만 기다려 주세요. 담당자를 연결해 드리겠습니다.',
+    ars_no_agent_message:
+      data?.ars_no_agent_message || '현재 상담 가능한 직원이 없습니다.',
+    ars_invalid_input_message:
+      data?.ars_invalid_input_message || '잘못된 입력입니다.',
+    ring_timeout_seconds: data?.ring_timeout_seconds || ENV_RING_TIMEOUT,
+    max_sequential_attempts: data?.max_sequential_attempts || 10,
+    enable_broadcast_fallback: data?.enable_broadcast_fallback ?? true,
+  }
+}
 
 // ──────────────────────────────────────────────
 // 활성 팀 조회 + ARS 멘트/메뉴 동적 생성
@@ -44,9 +70,10 @@ async function fetchActiveTeams() {
   return data || []
 }
 
-function buildGreeting(teams) {
+function buildGreeting(teams, settings) {
+  if (settings.ars_greeting) return settings.ars_greeting
   const lines = [
-    `안녕하세요, ${COMPANY_NAME}입니다.`,
+    `안녕하세요, ${settings.company_name}입니다.`,
     '원하시는 메뉴 번호를 눌러주세요.',
   ]
   teams.forEach((t, idx) => {
@@ -74,14 +101,14 @@ export async function handleInbound(req) {
     await ensureCustomerExists(callerPhone)
   }
 
-  const teams = await fetchActiveTeams()
+  const [teams, settings] = await Promise.all([fetchActiveTeams(), fetchCompanySettings()])
 
   if (teams.length === 0) {
-    return adapter.buildSayAndHangup('현재 운영 중인 상담팀이 없습니다. 잠시 후 다시 이용해 주세요.')
+    return adapter.buildSayAndHangup(settings.ars_no_agent_message)
   }
 
   return adapter.buildIVRResponse({
-    greeting: buildGreeting(teams),
+    greeting: buildGreeting(teams, settings),
     actionUrl: '/api/call-routing/menu-select',
     retryUrl: '/api/call-routing/inbound',
     timeoutSec: 10,
@@ -94,12 +121,12 @@ export async function handleInbound(req) {
 export async function handleMenuSelect(req) {
   const { digits, callerPhone } = adapter.parseMenuSelect(req)
 
-  const teams = await fetchActiveTeams()
+  const [teams, settings] = await Promise.all([fetchActiveTeams(), fetchCompanySettings()])
   const menu = buildMenu(teams)
   const selectedTeam = menu[digits]
 
   if (!selectedTeam) {
-    return adapter.buildRetry('잘못된 입력입니다.', '/api/call-routing/inbound')
+    return adapter.buildRetry(settings.ars_invalid_input_message, '/api/call-routing/inbound')
   }
 
   // 영업사원 조회 (우선순위순)
@@ -111,7 +138,7 @@ export async function handleMenuSelect(req) {
     .order('priority', { ascending: true })
 
   if (!agents || agents.length === 0) {
-    return adapter.buildSayAndHangup('현재 상담 가능한 직원이 없습니다.')
+    return adapter.buildSayAndHangup(settings.ars_no_agent_message)
   }
 
   // 통화 로그 미리 생성
@@ -139,10 +166,10 @@ export async function handleMenuSelect(req) {
   })
 
   return adapter.buildDialSingle({
-    message: `${selectedTeam.name}으로 연결합니다. 잠시만 기다려 주세요.`,
+    message: `${selectedTeam.name}으로 연결합니다. ${settings.ars_after_menu_message}`,
     phone: firstAgent.phone,
-    callerId: callerPhone,
-    timeoutSec: RING_TIMEOUT,
+    callerId: settings.main_phone || callerPhone,
+    timeoutSec: settings.ring_timeout_seconds,
     statusCallbackUrl: `/api/call-routing/status-callback?${params.toString()}`,
   })
 }
@@ -160,6 +187,7 @@ export async function handleStatusCallback(req) {
     agentId,
   } = req.query || {}
 
+  const settings = await fetchCompanySettings()
   const count = parseInt(attemptCount) || 1
 
   // 응답 성공
@@ -205,10 +233,20 @@ export async function handleStatusCallback(req) {
 
     return adapter.buildDialSingle({
       phone: nextAgent?.phone,
-      callerId: callerPhone,
-      timeoutSec: RING_TIMEOUT,
+      callerId: settings.main_phone || callerPhone,
+      timeoutSec: settings.ring_timeout_seconds,
       statusCallbackUrl: `/api/call-routing/status-callback?${params.toString()}`,
     })
+  }
+
+  // 순차 시도 모두 실패 → 동시 울림 폴백 사용여부 확인
+  if (!settings.enable_broadcast_fallback) {
+    await supabase
+      .from('call_logs')
+      .update({ call_status: 'missed', ring_attempt_count: count + 1 })
+      .eq('id', callLogId)
+    await upsertCustomerFromCall(callerPhone, teamId, null)
+    return adapter.buildSayAndHangup(settings.ars_no_agent_message)
   }
 
   // 전체 동시 울림
@@ -230,8 +268,8 @@ export async function handleStatusCallback(req) {
 
   return adapter.buildDialBroadcast({
     phones: (allAgents || []).map(a => a.phone),
-    callerId: callerPhone,
-    timeoutSec: RING_TIMEOUT * 2,
+    callerId: settings.main_phone || callerPhone,
+    timeoutSec: settings.ring_timeout_seconds * 2,
     statusCallbackUrl: `/api/call-routing/broadcast-callback?${params.toString()}`,
   })
 }

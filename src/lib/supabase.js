@@ -6,6 +6,30 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key'
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
 // ──────────────────────────────────────────────
+// Company Settings (회사 단위 통합 운영설정)
+// ──────────────────────────────────────────────
+export async function getCompanySettings() {
+  const { data, error } = await supabase
+    .from('company_settings')
+    .select('*')
+    .eq('id', 1)
+    .maybeSingle()
+  if (error) throw error
+  return data
+}
+
+export async function updateCompanySettings(updates) {
+  const { data, error } = await supabase
+    .from('company_settings')
+    .update(updates)
+    .eq('id', 1)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+// ──────────────────────────────────────────────
 // Teams (팀/지점/부서)
 // ──────────────────────────────────────────────
 export async function getTeams() {

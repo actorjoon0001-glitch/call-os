@@ -20,6 +20,7 @@ const navItems = [
   { to: '/customers', icon: UserCircle, label: '고객 관리' },
   { to: '/call-logs', icon: Phone, label: '통화 로그' },
   { to: '/consult-logs', icon: MessageSquare, label: '상담 이력' },
+  { to: '/settings', icon: Settings, label: '회사·대표번호 설정' },
 ]
 
 export default function Sidebar() {

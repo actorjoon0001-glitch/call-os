@@ -6,6 +6,7 @@ import Agents from './pages/Agents'
 import Customers from './pages/Customers'
 import CallLogs from './pages/CallLogs'
 import ConsultLogs from './pages/ConsultLogs'
+import Settings from './pages/Settings'
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/customers" element={<Customers />} />
           <Route path="/call-logs" element={<CallLogs />} />
           <Route path="/consult-logs" element={<ConsultLogs />} />
+          <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>
