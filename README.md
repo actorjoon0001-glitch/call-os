@@ -16,22 +16,47 @@
 - **PWA**: 자체 manifest + service worker (오프라인 캐싱)
 - **통신**: 어댑터 패턴 (`api/call-routing/adapters/`) — Twilio / 국내 통신사
 
-## 시작하기
+## 시작하기 (실제 Supabase 연결)
+
+실제 데이터로 사용·테스트하려면 Supabase 프로젝트 한 개만 연결하면 된다.
+
+### 1) Supabase 프로젝트 생성 + DB 스키마 적용
+
+1. [supabase.com](https://supabase.com) → **New project** 생성
+2. 좌측 **SQL Editor** → **New query** → `supabase/setup.sql` 내용을 통째로 붙여넣고 **Run**
+   - 스키마 + RLS 정책 + 샘플 시드(팀/영업사원/고객)가 한 번에 구성된다
+   - 여러 번 실행해도 안전(멱등) — 매 실행마다 데이터는 초기화됨
+
+### 2) 프로젝트 키를 `.env` 에 입력
+
+Supabase **Project Settings → API** 에서 값 복사:
+
+```bash
+cp .env.example .env
+```
+
+`.env` 에서 아래 두 값을 실제 값으로 교체(프론트엔드 필수):
+
+```
+VITE_SUPABASE_URL=https://xxxx.supabase.co     # Project URL
+VITE_SUPABASE_ANON_KEY=eyJ...                  # anon public key
+```
+
+> 서버리스 라우팅 API(`api/`)를 배포할 때만 `SUPABASE_SERVICE_ROLE_KEY` 등 나머지 값이 필요하다. 프론트 화면 테스트에는 위 두 값이면 충분하다.
+
+### 3) 연결 점검 후 실행
 
 ```bash
 npm install
-cp .env.example .env       # 값 채우기
-npm run dev                # http://localhost:5173
+npm run check:db      # .env 값으로 실제 연결/스키마/시드 확인
+npm run dev           # http://localhost:5173
 ```
 
-### 데이터베이스
+`check:db` 가 모든 테이블에 `✓` 를 찍으면 연결 완료다.
 
-Supabase 콘솔에서 `supabase/migrations/` 의 SQL을 순서대로 실행:
-
-1. `001_init.sql` — 초기 스키마
-2. `002_rename_showroom_to_team.sql` — 팀 개념으로 리네임 + 시드 정리
-
-> 🔧 신규 설치 환경이면 두 파일을 차례로 적용하면 깨끗한 스키마가 만들어진다.
+> 🔧 `supabase/migrations/` 의 `001_init.sql` → `002_rename_showroom_to_team.sql` 는 변경 이력용이다. **신규 설치는 `supabase/setup.sql` 하나만** 실행하면 된다.
+>
+> ⚠️ `setup.sql` 의 RLS 정책은 anon 전체 허용(개발/테스트용)이다. 운영 전에는 로그인·역할 기반으로 좁혀야 한다.
 
 ## 앱 설치 (PWA)
 
