@@ -30,8 +30,9 @@ Supabase 콘솔에서 `supabase/migrations/` 의 SQL을 순서대로 실행:
 
 1. `001_init.sql` — 초기 스키마
 2. `002_rename_showroom_to_team.sql` — 팀 개념으로 리네임 + 시드 정리
+3. `003_customer_kind_and_visit.sql` — 고객 DB 통합(방문예약/전화유입 구분 `kind` + 방문예약일 `visit_date`)
 
-> 🔧 신규 설치 환경이면 두 파일을 차례로 적용하면 깨끗한 스키마가 만들어진다.
+> 🔧 신규 설치 환경이면 세 파일을 차례로 적용하면 깨끗한 스키마가 만들어진다.
 
 ## 앱 설치 (PWA)
 

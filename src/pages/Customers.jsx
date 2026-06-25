@@ -1,13 +1,17 @@
 import { useState, useCallback } from 'react'
-import { UserCircle, Plus, Pencil, Search, Filter } from 'lucide-react'
+import {
+  UserCircle, Plus, Pencil, Search, CalendarCheck, PhoneIncoming, Users,
+} from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
 import Modal from '../components/ui/Modal'
 import Badge from '../components/ui/Badge'
+import StatCard from '../components/ui/StatCard'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EmptyState from '../components/ui/EmptyState'
 import { useSupabase } from '../hooks/useSupabase'
 import {
   getCustomers,
+  getCustomerStats,
   getTeams,
   getAgents,
   createCustomer,
@@ -15,29 +19,55 @@ import {
 } from '../lib/supabase'
 
 const STATUS_OPTIONS = ['신규', '상담중', '계약', '보류']
+const KIND_OPTIONS = ['방문예약', '전화유입', '직접등록']
+
+// 유형 탭 정의
+const TABS = [
+  { key: '', label: '전체' },
+  { key: '방문예약', label: '방문예약' },
+  { key: '전화유입', label: '전화유입 (CALL-OS)' },
+  { key: '직접등록', label: '직접등록' },
+]
+
+// 구분 뱃지 색상
+const KIND_VARIANT = {
+  '방문예약': 'primary',
+  '전화유입': 'info',
+  '직접등록': 'gray',
+}
+
+// ISO 문자열 → datetime-local 입력값 (YYYY-MM-DDTHH:mm)
+function toLocalInput(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+const emptyForm = {
+  name: '', phone: '', region: '', content: '', manager: '',
+  status: '신규', memo: '', source: '', team_id: '',
+  kind: '방문예약', visit_date: '',
+}
 
 export default function Customers() {
-  const [filters, setFilters] = useState({ search: '', status: '', team_id: '', manager: '' })
+  const [filters, setFilters] = useState({ search: '', status: '', kind: '', team_id: '', manager: '' })
   const { data: customers, loading, refetch } = useSupabase(
     useCallback(() => getCustomers(filters), [filters])
   )
+  const { data: stats, refetch: refetchStats } = useSupabase(getCustomerStats)
   const { data: teams } = useSupabase(getTeams)
   const { data: agents } = useSupabase(getAgents)
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState({
-    name: '', phone: '', region: '', content: '', manager: '',
-    status: '신규', memo: '', source: '', team_id: '',
-  })
+  const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
 
   const openCreate = () => {
     setEditing(null)
-    setForm({
-      name: '', phone: '', region: '', content: '', manager: '',
-      status: '신규', memo: '', source: '', team_id: '',
-    })
+    // 현재 보고 있는 탭이 특정 유형이면 그 유형으로 기본값 설정
+    setForm({ ...emptyForm, kind: filters.kind || '방문예약' })
     setModalOpen(true)
   }
 
@@ -53,6 +83,8 @@ export default function Customers() {
       memo: c.memo || '',
       source: c.source || '',
       team_id: c.team_id || '',
+      kind: c.kind || '직접등록',
+      visit_date: toLocalInput(c.visit_date),
     })
     setModalOpen(true)
   }
@@ -63,6 +95,11 @@ export default function Customers() {
     try {
       const payload = { ...form }
       if (!payload.team_id) payload.team_id = null
+      // 방문예약일은 방문예약 유형일 때만 저장
+      payload.visit_date =
+        payload.kind === '방문예약' && payload.visit_date
+          ? new Date(payload.visit_date).toISOString()
+          : null
       if (editing) {
         await updateCustomer(editing.id, payload)
       } else {
@@ -70,6 +107,7 @@ export default function Customers() {
       }
       setModalOpen(false)
       refetch()
+      refetchStats()
     } catch (err) {
       alert('저장 실패: ' + err.message)
     } finally {
@@ -77,7 +115,7 @@ export default function Customers() {
     }
   }
 
-  // Unique managers from agents
+  // 담당자 목록 (영업사원 이름)
   const managerNames = [...new Set((agents || []).map(a => a.name))]
 
   if (loading) return <LoadingSpinner />
@@ -86,7 +124,7 @@ export default function Customers() {
     <div>
       <PageHeader
         title="고객 관리"
-        description="고객 정보 조회 및 관리"
+        description="방문예약자와 CALL-OS 전화 유입 DB를 한곳에서 관리"
         actions={
           <button
             onClick={openCreate}
@@ -97,6 +135,31 @@ export default function Customers() {
           </button>
         }
       />
+
+      {/* 통계 카드 */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <StatCard label="전체 고객" value={stats?.total ?? '-'} icon={Users} color="blue" />
+        <StatCard label="방문예약" value={stats?.visit ?? '-'} icon={CalendarCheck} color="purple" />
+        <StatCard label="전화유입 (CALL-OS)" value={stats?.call ?? '-'} icon={PhoneIncoming} color="green" />
+        <StatCard label="이번 달 신규" value={stats?.newThisMonth ?? '-'} icon={UserCircle} color="yellow" />
+      </div>
+
+      {/* 유형 탭 */}
+      <div className="flex flex-wrap gap-1 mb-4 border-b border-gray-200">
+        {TABS.map(t => (
+          <button
+            key={t.key || 'all'}
+            onClick={() => setFilters(f => ({ ...f, kind: t.key }))}
+            className={`px-4 py-2 -mb-px text-sm font-medium border-b-2 transition-colors ${
+              filters.kind === t.key
+                ? 'border-primary text-primary'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
       {/* 필터 영역 */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -146,12 +209,14 @@ export default function Customers() {
           <table>
             <thead>
               <tr>
+                <th>구분</th>
                 <th>고객명</th>
                 <th>전화번호</th>
                 <th>팀</th>
                 <th>지역</th>
                 <th>담당자</th>
                 <th>상태</th>
+                <th>방문예약일</th>
                 <th>유입경로</th>
                 <th>등록일</th>
                 <th className="text-right">관리</th>
@@ -160,12 +225,22 @@ export default function Customers() {
             <tbody>
               {customers.map(c => (
                 <tr key={c.id}>
+                  <td>
+                    <Badge variant={KIND_VARIANT[c.kind] || 'gray'}>{c.kind || '직접등록'}</Badge>
+                  </td>
                   <td className="font-medium text-gray-900">{c.name || '-'}</td>
                   <td className="text-gray-600">{c.phone}</td>
                   <td className="text-gray-600">{c.teams?.name || '-'}</td>
                   <td className="text-gray-600">{c.region || '-'}</td>
                   <td className="text-gray-600">{c.manager || '-'}</td>
                   <td><Badge>{c.status}</Badge></td>
+                  <td className="text-gray-500 text-xs">
+                    {c.visit_date
+                      ? new Date(c.visit_date).toLocaleString('ko-KR', {
+                          month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+                        })
+                      : '-'}
+                  </td>
                   <td className="text-gray-500 text-xs">{c.source || '-'}</td>
                   <td className="text-gray-500 text-xs">
                     {new Date(c.created_at).toLocaleDateString('ko-KR')}
@@ -196,6 +271,27 @@ export default function Customers() {
         size="lg"
       >
         <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">구분</label>
+            <select
+              value={form.kind}
+              onChange={e => setForm({ ...form, kind: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none"
+            >
+              {KIND_OPTIONS.map(k => <option key={k} value={k}>{k}</option>)}
+            </select>
+          </div>
+          {form.kind === '방문예약' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">방문 예약 일시</label>
+              <input
+                type="datetime-local"
+                value={form.visit_date}
+                onChange={e => setForm({ ...form, visit_date: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none"
+              />
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">고객명</label>
             <input
@@ -262,6 +358,7 @@ export default function Customers() {
               type="text"
               value={form.source}
               onChange={e => setForm({ ...form, source: e.target.value })}
+              placeholder="예: 네이버광고, 방문예약, 대표번호 수신"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary outline-none"
             />
           </div>

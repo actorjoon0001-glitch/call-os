@@ -100,6 +100,7 @@ export async function getCustomers(filters = {}) {
     .order('created_at', { ascending: false })
 
   if (filters.status) query = query.eq('status', filters.status)
+  if (filters.kind) query = query.eq('kind', filters.kind)
   if (filters.team_id) query = query.eq('team_id', filters.team_id)
   if (filters.manager) query = query.ilike('manager', `%${filters.manager}%`)
   if (filters.search) {
@@ -109,6 +110,24 @@ export async function getCustomers(filters = {}) {
   const { data, error } = await query
   if (error) throw error
   return data
+}
+
+// 고객 DB 통계 — 전체 / 방문예약 / 전화유입(CALL-OS) / 이번 달 신규
+export async function getCustomerStats() {
+  const { data, error } = await supabase
+    .from('customers')
+    .select('kind, created_at')
+  if (error) throw error
+
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const stats = { total: data.length, visit: 0, call: 0, newThisMonth: 0 }
+  for (const c of data) {
+    if (c.kind === '방문예약') stats.visit++
+    if (c.kind === '전화유입') stats.call++
+    if (new Date(c.created_at) >= monthStart) stats.newThisMonth++
+  }
+  return stats
 }
 
 export async function getCustomerByPhone(phone) {
