@@ -6,6 +6,8 @@ import Agents from './pages/Agents'
 import Customers from './pages/Customers'
 import CallLogs from './pages/CallLogs'
 import ConsultLogs from './pages/ConsultLogs'
+import Reservations from './pages/Reservations'
+import AiReceptionist from './pages/AiReceptionist'
 
 export default function App() {
   return (
@@ -13,6 +15,8 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/ai-receptionist" element={<AiReceptionist />} />
+          <Route path="/reservations" element={<Reservations />} />
           <Route path="/teams" element={<Teams />} />
           <Route path="/agents" element={<Agents />} />
           <Route path="/customers" element={<Customers />} />

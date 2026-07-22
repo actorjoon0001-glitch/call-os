@@ -17,6 +17,17 @@ const statusMap = {
   'ringing': 'warning',
   'failed': 'danger',
   'voicemail': 'gray',
+  // 방문예약 상태
+  '요청': 'warning',
+  '확정': 'success',
+  '취소': 'danger',
+  '방문완료': 'info',
+  '노쇼': 'gray',
+  // AI 세션 결과
+  'booked': 'success',
+  'transferred': 'info',
+  'ended': 'gray',
+  'in_progress': 'warning',
 }
 
 export default function Badge({ children, variant, className = '' }) {

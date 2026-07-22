@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Phone, PhoneOff, PhoneCall, PhoneIncoming, Building2, Users } from 'lucide-react'
+import { Phone, PhoneOff, PhoneCall, PhoneIncoming, Building2, Users, CalendarCheck, CalendarClock } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
 import StatCard from '../components/ui/StatCard'
 import Badge from '../components/ui/Badge'
@@ -90,6 +90,31 @@ export default function Dashboard() {
           icon={Phone}
           color="purple"
           sub={stats?.total ? `${stats.answered}/${stats.total}` : ''}
+        />
+      </div>
+
+      {/* 방문예약 지표 */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <StatCard
+          label="오늘 접수된 예약"
+          value={stats?.todayReservations || 0}
+          icon={CalendarCheck}
+          color="blue"
+          sub="건"
+        />
+        <StatCard
+          label="확정 대기 (요청)"
+          value={stats?.pendingReservations || 0}
+          icon={CalendarClock}
+          color="yellow"
+          sub="건"
+        />
+        <StatCard
+          label="확정된 예약"
+          value={stats?.confirmedReservations || 0}
+          icon={CalendarCheck}
+          color="green"
+          sub="건"
         />
       </div>
 
