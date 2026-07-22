@@ -198,6 +198,88 @@ export async function createConsultLog(log) {
 }
 
 // ──────────────────────────────────────────────
+// Reservations (방문예약)
+// ──────────────────────────────────────────────
+export async function getReservations(filters = {}) {
+  let query = supabase
+    .from('reservations')
+    .select('*, teams(name)')
+    .order('created_at', { ascending: false })
+
+  if (filters.status) query = query.eq('status', filters.status)
+  if (filters.team_id) query = query.eq('team_id', filters.team_id)
+  if (filters.search) {
+    query = query.or(`customer_name.ilike.%${filters.search}%,customer_phone.ilike.%${filters.search}%`)
+  }
+
+  const { data, error } = await query
+  if (error) throw error
+  return data
+}
+
+export async function createReservation(reservation) {
+  const { data, error } = await supabase
+    .from('reservations')
+    .insert(reservation)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateReservation(id, updates) {
+  const { data, error } = await supabase
+    .from('reservations')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteReservation(id) {
+  const { error } = await supabase.from('reservations').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ──────────────────────────────────────────────
+// AI 안내원 세션 / 설정
+// ──────────────────────────────────────────────
+export async function getAiSessions(filters = {}) {
+  let query = supabase
+    .from('ai_call_sessions')
+    .select('*, teams(name)')
+    .order('created_at', { ascending: false })
+
+  if (filters.outcome) query = query.eq('outcome', filters.outcome)
+  const { data, error } = await query
+  if (error) throw error
+  return data
+}
+
+export async function getAiSettings() {
+  const { data, error } = await supabase
+    .from('ai_settings')
+    .select('*')
+    .eq('id', 1)
+    .maybeSingle()
+  if (error) throw error
+  return data
+}
+
+export async function updateAiSettings(updates) {
+  const { data, error } = await supabase
+    .from('ai_settings')
+    .update(updates)
+    .eq('id', 1)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+// ──────────────────────────────────────────────
 // Dashboard Stats
 // ──────────────────────────────────────────────
 export async function getDashboardStats() {
@@ -225,5 +307,17 @@ export async function getDashboardStats() {
     byAgent[c.answered_by_agent_id] = (byAgent[c.answered_by_agent_id] || 0) + 1
   })
 
-  return { total, answered, missed, byTeam, byAgent }
+  // 방문예약 지표
+  const { data: reservations } = await supabase
+    .from('reservations')
+    .select('status, created_at')
+
+  const todayReservations = reservations?.filter(r => new Date(r.created_at) >= today).length || 0
+  const pendingReservations = reservations?.filter(r => r.status === '요청').length || 0
+  const confirmedReservations = reservations?.filter(r => r.status === '확정').length || 0
+
+  return {
+    total, answered, missed, byTeam, byAgent,
+    todayReservations, pendingReservations, confirmedReservations,
+  }
 }

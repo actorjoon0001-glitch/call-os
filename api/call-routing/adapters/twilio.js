@@ -53,6 +53,18 @@ export const twilioAdapter = {
   },
 
   /**
+   * 음성 인식(STT) 결과 파싱 — AI 안내원 대화용
+   */
+  parseSpeechResult(req) {
+    return {
+      transcript: req.body?.SpeechResult || '',
+      confidence: parseFloat(req.body?.Confidence || '0'),
+      callerPhone: req.body?.From,
+      callSid: req.body?.CallSid,
+    }
+  },
+
+  /**
    * ARS 멘트 + DTMF 입력 수집 응답
    */
   buildIVRResponse({ greeting, actionUrl, retryUrl, timeoutSec = 10 }) {
@@ -115,5 +127,29 @@ export const twilioAdapter = {
 
   buildHangup() {
     return xmlResponse(`<Response>\n  <Hangup/>\n</Response>`)
+  },
+
+  /**
+   * AI 안내원: 안내 문구 재생 + 음성 응답 수집
+   * 무응답 시 재안내 URL로 리다이렉트.
+   */
+  buildSayAndGatherSpeech({ message, actionUrl, repromptUrl, timeoutSec = 5 }) {
+    return xmlResponse(`<Response>
+  <Gather input="speech" language="${TTS_LANG}" speechTimeout="auto" timeout="${timeoutSec}" action="${escapeXml(actionUrl)}">
+    <Say language="${TTS_LANG}" voice="${TTS_VOICE}">${escapeXml(message)}</Say>
+  </Gather>
+  <Say language="${TTS_LANG}" voice="${TTS_VOICE}">말씀이 없으시네요. 다시 안내해 드릴게요.</Say>
+  <Redirect>${escapeXml(repromptUrl)}</Redirect>
+</Response>`)
+  },
+
+  /**
+   * 안내 문구 재생 후 지정 URL로 리다이렉트 (사람 연결 등 핸드오프)
+   */
+  buildSayAndRedirect({ message, redirectUrl }) {
+    return xmlResponse(`<Response>
+  ${message ? `<Say language="${TTS_LANG}" voice="${TTS_VOICE}">${escapeXml(message)}</Say>` : ''}
+  <Redirect>${escapeXml(redirectUrl)}</Redirect>
+</Response>`)
   },
 }

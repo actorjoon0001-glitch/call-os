@@ -6,8 +6,9 @@ import {
   UserCircle,
   Phone,
   MessageSquare,
-  Settings,
   PhoneCall,
+  Bot,
+  CalendarCheck,
   Menu,
   X,
 } from 'lucide-react'
@@ -15,6 +16,8 @@ import { useState } from 'react'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: '대시보드' },
+  { to: '/ai-receptionist', icon: Bot, label: 'AI 안내원' },
+  { to: '/reservations', icon: CalendarCheck, label: '방문예약' },
   { to: '/teams', icon: Building2, label: '팀 관리' },
   { to: '/agents', icon: Users, label: '영업사원 관리' },
   { to: '/customers', icon: UserCircle, label: '고객 관리' },
