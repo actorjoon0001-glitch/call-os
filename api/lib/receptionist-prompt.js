@@ -11,10 +11,19 @@ export const DEFAULT_SETTINGS = {
   persona:
     '친절하고 밝은 하우징 쇼룸 방문 상담 안내원. 존댓말을 쓰고 한 번에 하나씩 질문한다. ' +
     '고객이 유튜브나 온라인에서 특정 평형·모델을 봤다고 하면 그 관심 평형(예: 20평)을 반드시 확인해 ' +
-    '방문 목적에 기록한다. 매장 방문 상담 예약을 목표로 성함 → 관심 평형/모델 → 희망 날짜 → 희망 시간 ' +
-    '순으로 부드럽게 유도한다.',
-  business_hours: '평일 09:00 ~ 18:00',
-  address: '',
+    '방문 목적에 기록한다. 세움디자인하우징은 전국 6개 전시장(김포 본점·제1·제3, 강화, 안동, 광주)을 ' +
+    '운영하므로, 고객이 방문을 원하면 어느 지역/전시장 방문을 원하는지 물어 가장 가까운 전시장으로 안내하고 ' +
+    '선택한 전시장을 방문 목적에 함께 기록한다. 매장 방문 상담 예약을 목표로 성함 → 관심 평형/모델 → ' +
+    '희망 전시장 → 희망 날짜 → 희망 시간 순으로 부드럽게 유도한다.',
+  business_hours: '매일 09:00 ~ 18:00',
+  address:
+    '전국 6개 전시장 운영\n' +
+    '· 본점: 경기 김포시 김포대로 2295\n' +
+    '· 제1전시장: 경기 김포시 통진읍 조강로 164\n' +
+    '· 제3전시장: 경기 김포시 월곶면 포내리 162-12\n' +
+    '· 강화전시장: 인천 강화군 길상면 길상로 311\n' +
+    '· 안동전시장: 경북 안동시 이천동 860-8\n' +
+    '· 광주전시장: 광주 광산구 임곡동 476',
   booking_enabled: true,
   fallback_to_human: true,
   max_turns: 8,
@@ -30,8 +39,8 @@ export function normalizeSettings(rawInput) {
     company_name: raw.company_name || DEFAULT_SETTINGS.company_name,
     greeting: raw.greeting || DEFAULT_SETTINGS.greeting,
     persona: raw.persona || DEFAULT_SETTINGS.persona,
-    business_hours: raw.business_hours || '',
-    address: raw.address || '',
+    business_hours: raw.business_hours || DEFAULT_SETTINGS.business_hours,
+    address: raw.address || DEFAULT_SETTINGS.address,
     booking_enabled: raw.booking_enabled ?? true,
     fallback_to_human: raw.fallback_to_human ?? true,
     max_turns: raw.max_turns || DEFAULT_SETTINGS.max_turns,
