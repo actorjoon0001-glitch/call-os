@@ -31,7 +31,7 @@ export default defineConfig([
   },
   // 서버리스 함수 / SW 는 node·worker 환경
   {
-    files: ['api/**/*.{js,jsx}', 'public/sw.js'],
+    files: ['api/**/*.{js,jsx}', 'netlify/**/*.{js,jsx}', 'public/sw.js'],
     languageOptions: {
       globals: { ...globals.node, ...globals.serviceworker },
     },
