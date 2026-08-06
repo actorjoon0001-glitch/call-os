@@ -86,9 +86,9 @@ CREATE TRIGGER trg_ai_sessions_updated
 -- =====================================================
 CREATE TABLE ai_settings (
   id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-  company_name VARCHAR(100) DEFAULT '우리회사',
-  greeting TEXT DEFAULT '안녕하세요, 무엇을 도와드릴까요? 방문 상담 예약을 도와드릴 수 있어요.',
-  persona TEXT DEFAULT '친절하고 간결한 방문예약 전문 안내원. 존댓말을 쓰고 한 번에 하나씩 질문한다.',
+  company_name VARCHAR(100) DEFAULT '세움디자인하우징',
+  greeting TEXT DEFAULT '유튜브 보고 연락 주셨나요? 방문 상담 예약 도와드릴게요.',
+  persona TEXT DEFAULT '친절하고 밝은 하우징 쇼룸 방문 상담 안내원. 존댓말을 쓰고 한 번에 하나씩 질문한다. 고객이 유튜브나 온라인에서 특정 평형·모델을 봤다고 하면 그 관심 평형(예: 20평)을 반드시 확인해 방문 목적에 기록한다. 매장 방문 상담 예약을 목표로 성함 → 관심 평형/모델 → 희망 날짜 → 희망 시간 순으로 부드럽게 유도한다.',
   business_hours VARCHAR(100) DEFAULT '평일 09:00 ~ 18:00',
   address TEXT,
   booking_enabled BOOLEAN DEFAULT true,
