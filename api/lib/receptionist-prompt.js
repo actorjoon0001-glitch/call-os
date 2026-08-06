@@ -18,8 +18,10 @@ export const DEFAULT_SETTINGS = {
 
 /**
  * DB/클라이언트에서 온 설정을 안전한 형태로 정규화 (누락 필드는 기본값)
+ * raw 가 null/undefined 여도(설정 행 없음) 기본값으로 안전하게 동작.
  */
-export function normalizeSettings(raw = {}) {
+export function normalizeSettings(rawInput) {
+  const raw = rawInput || {}
   return {
     company_name: raw.company_name || DEFAULT_SETTINGS.company_name,
     greeting: raw.greeting || DEFAULT_SETTINGS.greeting,
