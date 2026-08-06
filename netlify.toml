@@ -1,8 +1,14 @@
 [build]
   command = "npm run build"
   publish = "dist"
+  functions = "netlify/functions"
 
-# SPA 라우팅 - 모든 경로를 index.html로 리다이렉트
+# 서버리스 함수는 ESM + esbuild 번들링
+[functions]
+  node_bundler = "esbuild"
+
+# SPA 라우팅 - 함수/정적파일이 아닌 모든 경로를 index.html로 리다이렉트
+# (Netlify는 /.netlify/functions/* 를 이 리다이렉트보다 먼저 처리한다)
 [[redirects]]
   from = "/*"
   to = "/index.html"
