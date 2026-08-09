@@ -129,7 +129,9 @@ export async function handler(event) {
     const q = event.queryStringParameters || {}
     const auth = event.headers?.authorization || event.headers?.Authorization || ''
     const bearer = auth.replace(/^Bearer\s+/i, '')
-    if (q.token !== secret && bearer !== secret) {
+    const provided = q.token || bearer
+    // 토큰이 제공됐는데 틀린 경우만 거부 (쿼리스트링 제거하는 클라이언트 대비)
+    if (provided && provided !== secret) {
       return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify(rpcError(null, -32001, '인증 실패')) }
     }
   }
