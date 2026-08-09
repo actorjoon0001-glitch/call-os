@@ -16,9 +16,14 @@ create table if not exists teams (
   id uuid default gen_random_uuid() primary key,
   name varchar(100) not null,
   code varchar(20) not null unique,
+  manager_name varchar(50),
+  manager_phone varchar(20),
   is_active boolean default true,
   created_at timestamptz default now()
 );
+-- 기존 설치 환경 호환: 컬럼 없으면 추가
+alter table teams add column if not exists manager_name varchar(50);
+alter table teams add column if not exists manager_phone varchar(20);
 
 -- 2. 영업사원/전시장 담당 -------------------------------------
 create table if not exists sales_agents (
@@ -146,13 +151,13 @@ create trigger trg_ai_settings_updated before update on ai_settings
 insert into ai_settings (id) values (1) on conflict (id) do nothing;
 
 -- 9. 실제 데이터 시드: 6개 전시장 + 담당 번호 -----------------
-insert into teams (name, code, is_active) values
-  ('본점',       'SEUM-BON', true),
-  ('제1전시장',  'SEUM-1',   true),
-  ('제3전시장',  'SEUM-3',   true),
-  ('강화전시장', 'SEUM-GH',  true),
-  ('안동전시장', 'SEUM-AD',  true),
-  ('광주전시장', 'SEUM-GJ',  true)
+insert into teams (name, code, manager_phone, is_active) values
+  ('본점',       'SEUM-BON', '010-9100-5945', true),
+  ('제1전시장',  'SEUM-1',   '010-8190-5946', true),
+  ('제3전시장',  'SEUM-3',   '010-2278-2997', true),
+  ('강화전시장', 'SEUM-GH',  '010-8165-5945', true),
+  ('안동전시장', 'SEUM-AD',  '010-4224-5945', true),
+  ('광주전시장', 'SEUM-GJ',  '010-6639-5151', true)
 on conflict (code) do nothing;
 
 insert into sales_agents (team_id, name, phone, priority, is_active)
