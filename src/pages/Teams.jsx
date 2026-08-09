@@ -12,18 +12,24 @@ export default function Teams() {
   const { data: teams, loading, refetch } = useSupabase(getTeams)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState({ name: '', code: '', is_active: true })
+  const [form, setForm] = useState({ name: '', code: '', is_active: true, manager_name: '', manager_phone: '' })
   const [saving, setSaving] = useState(false)
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', code: '', is_active: true })
+    setForm({ name: '', code: '', is_active: true, manager_name: '', manager_phone: '' })
     setModalOpen(true)
   }
 
   const openEdit = (t) => {
     setEditing(t)
-    setForm({ name: t.name, code: t.code, is_active: t.is_active })
+    setForm({
+      name: t.name,
+      code: t.code,
+      is_active: t.is_active,
+      manager_name: t.manager_name || '',
+      manager_phone: t.manager_phone || '',
+    })
     setModalOpen(true)
   }
 
@@ -89,10 +95,11 @@ export default function Teams() {
           <table>
             <thead>
               <tr>
-                <th>팀명</th>
+                <th>전시장/팀명</th>
                 <th>코드</th>
+                <th>팀장</th>
+                <th>팀장 연락처(문자수신)</th>
                 <th>상태</th>
-                <th>등록일</th>
                 <th className="text-right">관리</th>
               </tr>
             </thead>
@@ -103,6 +110,8 @@ export default function Teams() {
                   <td>
                     <code className="text-xs bg-gray-100 px-2 py-0.5 rounded">{t.code}</code>
                   </td>
+                  <td className="text-gray-600">{t.manager_name || '-'}</td>
+                  <td className="text-gray-600">{t.manager_phone || <span className="text-amber-500">미등록</span>}</td>
                   <td>
                     <button onClick={() => toggleActive(t)} className="flex items-center gap-1">
                       {t.is_active ? (
@@ -118,7 +127,6 @@ export default function Teams() {
                       )}
                     </button>
                   </td>
-                  <td>{new Date(t.created_at).toLocaleDateString('ko-KR')}</td>
                   <td>
                     <div className="flex items-center justify-end gap-1">
                       <button
@@ -171,6 +179,27 @@ export default function Teams() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
               placeholder="예: SALES-1"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">팀장 이름</label>
+            <input
+              type="text"
+              value={form.manager_name}
+              onChange={e => setForm({ ...form, manager_name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              placeholder="예: 김팀장"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">팀장 연락처 (예약 문자 수신)</label>
+            <input
+              type="tel"
+              value={form.manager_phone}
+              onChange={e => setForm({ ...form, manager_phone: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+              placeholder="예: 010-1234-5678"
+            />
+            <p className="mt-1 text-xs text-gray-400">이 전시장으로 방문예약이 접수되면 이 번호로 문자가 발송됩니다.</p>
           </div>
           <div className="flex items-center gap-2">
             <input
