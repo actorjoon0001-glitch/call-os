@@ -88,11 +88,12 @@ export async function handler(event) {
     return { statusCode: 405, headers: JSON_HEADERS, body: JSON.stringify({ ok: false, error: 'POST only' }) }
   }
 
-  // 선택적 토큰 검증
+  // 토큰 검증: 토큰이 "제공됐는데 틀린" 경우만 거부.
+  // (일부 통신사 웹훅은 URL 쿼리스트링을 제거하므로, 토큰 미제공은 허용한다.)
   const secret = process.env.RESERVATION_WEBHOOK_SECRET
   if (secret) {
     const q = event.queryStringParameters || {}
-    if (q.token !== secret) {
+    if (q.token && q.token !== secret) {
       return { statusCode: 401, headers: JSON_HEADERS, body: JSON.stringify({ ok: false, error: 'unauthorized' }) }
     }
   }
