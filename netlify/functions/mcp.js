@@ -11,7 +11,10 @@
  * 필요 env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESERVATION_WEBHOOK_SECRET(선택)
  */
 
+import crypto from 'node:crypto'
 import { insertReservation } from '../../api/lib/reservations.js'
+import { sbInsert } from '../../api/lib/supabase-rest.js'
+import { resolveTeam, notifyManager } from '../../api/lib/notify.js'
 
 const PROTOCOL_VERSION = '2025-03-26'
 
@@ -37,6 +40,7 @@ const SAVE_RESERVATION_TOOL = {
       date: { type: 'string', description: '희망 방문 날짜 (YYYY-MM-DD 또는 "이번 주 토요일" 등)' },
       time: { type: 'string', description: '희망 방문 시간 (예: 오후 2시)' },
       purpose: { type: 'string', description: '방문 목적/메모 (선택)' },
+      summary: { type: 'string', description: '통화 대화 요약 한두 문장 (선택). 통화 기록에 저장됨.' },
     },
     required: ['name'],
   },
@@ -47,6 +51,41 @@ function rpcResult(id, result) {
 }
 function rpcError(id, code, message) {
   return { jsonrpc: '2.0', id, error: { code, message } }
+}
+
+// 예약 저장 + 통화기록 + 세션 + 담당 전시장 팀장 문자 (통화 중 실시간)
+async function processBooking(args) {
+  const saved = await insertReservation({ ...args, source: 'AI안내원(전화)' })
+  if (!saved.ok) return `예약 저장 실패: ${saved.error}`
+
+  const team = await resolveTeam(args.showroom)
+
+  // 통화 기록
+  await sbInsert('call_logs', {
+    customer_phone: args.phone || '미상',
+    call_status: 'answered',
+    team_id: team?.id || null,
+    note: args.summary || '방문예약 접수',
+  }).catch(() => {})
+
+  // AI 통화 세션 (대화 요약 저장)
+  await sbInsert('ai_call_sessions', {
+    call_sid: `mcp-${crypto.randomUUID()}`,
+    customer_phone: args.phone || null,
+    team_id: team?.id || null,
+    transcript: args.summary ? [{ role: 'assistant', content: args.summary }] : [],
+    intent: '예약',
+    outcome: 'booked',
+    reservation_id: saved.id,
+  }).catch(() => {})
+
+  // 담당 전시장 팀장 문자
+  const sms = await notifyManager(team, { ...args })
+
+  const where = team?.name ? `${team.name} ` : ''
+  return sms.ok
+    ? `${where}방문 예약이 접수되었고 담당 팀장에게 문자로 알렸습니다.`
+    : `${where}방문 예약이 접수되었습니다.`
 }
 
 async function handleRequest(msg) {
@@ -69,14 +108,8 @@ async function handleRequest(msg) {
       if (toolName !== 'save_reservation') {
         return rpcError(id, -32602, `알 수 없는 도구: ${toolName}`)
       }
-      const saved = await insertReservation({ ...args, source: 'AI안내원(전화)' })
-      const text = saved.ok
-        ? `예약이 정상 접수되었습니다. (예약번호: ${saved.id || '생성됨'})`
-        : `예약 저장 실패: ${saved.error}`
-      return rpcResult(id, {
-        content: [{ type: 'text', text }],
-        isError: !saved.ok,
-      })
+      const text = await processBooking(args)
+      return rpcResult(id, { content: [{ type: 'text', text }], isError: text.startsWith('예약 저장 실패') })
     }
 
     case 'ping':

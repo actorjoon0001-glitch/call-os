@@ -19,7 +19,7 @@
 import { sbConfigured, sbSelect, sbInsert, sbUpdate } from '../../api/lib/supabase-rest.js'
 import { insertReservation } from '../../api/lib/reservations.js'
 import { callClaude } from '../../api/lib/claude.js'
-import { sendSms, solapiConfigured } from '../../api/lib/solapi.js'
+import { resolveTeam, notifyManager } from '../../api/lib/notify.js'
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 
@@ -193,50 +193,4 @@ async function maybeBook(session, turns, fromNum) {
 
   // 담당 전시장 팀장에게 문자 발송
   await notifyManager(team, { ...booking, phone })
-}
-
-// 예약한 전시장명을 teams와 매칭 (이름 포함 / 지역 키워드)
-async function resolveTeam(showroom) {
-  try {
-    const teams = await sbSelect('teams', 'select=*')
-    if (!teams?.length) return null
-    const s = String(showroom || '')
-    // 1) 팀명이 예약 전시장 문자열에 포함되는지 (예: "안동전시장" ⊂ "안동전시장 방문")
-    let hit = teams.find(t => s && (s.includes(t.name) || t.name.includes(s)))
-    if (hit) return hit
-    // 2) 지역 키워드 매칭
-    const KEYS = [
-      ['안동', '안동'], ['강화', '강화'], ['광주', '광주'],
-      ['월곶', '제3'], ['통진', '제1'], ['본점', '본점'], ['김포', '본점'],
-    ]
-    for (const [kw, teamHint] of KEYS) {
-      if (s.includes(kw)) {
-        hit = teams.find(t => t.name.includes(teamHint))
-        if (hit) return hit
-      }
-    }
-    return null
-  } catch {
-    return null
-  }
-}
-
-// 전시장 팀장에게 예약 알림 문자
-async function notifyManager(team, booking) {
-  if (!solapiConfigured()) return
-  const managerPhone = team?.manager_phone
-  if (!managerPhone) return
-
-  const lines = [
-    '[세움디자인하우징 방문예약]',
-    `전시장: ${team?.name || booking.showroom || '-'}`,
-    `성함: ${booking.name || '-'}`,
-    `연락처: ${booking.phone || '-'}`,
-    booking.interested_size && `관심: ${booking.interested_size}`,
-    (booking.date || booking.time) && `희망: ${[booking.date, booking.time].filter(Boolean).join(' ')}`,
-    'AI 안내원 접수 · CALL-OS에서 확인',
-  ].filter(Boolean)
-
-  const r = await sendSms({ to: managerPhone, text: lines.join('\n') })
-  if (!r.ok) console.error('[clawops-webhook] 문자 발송 실패:', r.error)
 }
