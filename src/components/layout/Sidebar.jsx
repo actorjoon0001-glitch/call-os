@@ -1,11 +1,9 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard,
-  Building2,
   Users,
   UserCircle,
   Phone,
-  MessageSquare,
   PhoneCall,
   Bot,
   CalendarCheck,
@@ -18,11 +16,9 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: '대시보드' },
   { to: '/ai-receptionist', icon: Bot, label: 'AI 안내원' },
   { to: '/reservations', icon: CalendarCheck, label: '방문예약' },
-  { to: '/teams', icon: Building2, label: '팀 관리' },
   { to: '/agents', icon: Users, label: '영업사원 관리' },
   { to: '/customers', icon: UserCircle, label: '고객 관리' },
   { to: '/call-logs', icon: Phone, label: '통화 로그' },
-  { to: '/consult-logs', icon: MessageSquare, label: '상담 이력' },
 ]
 
 export default function Sidebar() {
