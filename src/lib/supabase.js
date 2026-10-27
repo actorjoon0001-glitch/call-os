@@ -172,6 +172,51 @@ export async function createCallLog(log) {
 }
 
 // ──────────────────────────────────────────────
+// 직원 수기 통화 기록 (사람이 직접 받은 통화)
+// 고객 업서트 + 통화로그 + 상담내용을 함께 남긴다.
+// ──────────────────────────────────────────────
+export async function saveManualCallLog({ phone, name, region, status, team_id, note, manager }) {
+  if (!phone) throw new Error('전화번호는 필수입니다.')
+
+  // 1) 고객 업서트
+  let customer = await getCustomerByPhone(phone)
+  if (!customer) {
+    customer = await createCustomer({
+      phone,
+      name: name || null,
+      region: region || null,
+      team_id: team_id || null,
+      manager: manager || null,
+      status: '신규',
+      source: '직접통화',
+    })
+  } else {
+    const updates = {}
+    if (name && !customer.name) updates.name = name
+    if (team_id && !customer.team_id) updates.team_id = team_id
+    if (manager) updates.manager = manager
+    if (Object.keys(updates).length) {
+      customer = await updateCustomer(customer.id, updates)
+    }
+  }
+
+  // 2) 통화 로그
+  await createCallLog({
+    customer_phone: phone,
+    call_status: status || 'answered',
+    team_id: team_id || null,
+    note: note || null,
+  })
+
+  // 3) 상담 내용(대화 기록)
+  if (note) {
+    await createConsultLog({ customer_id: customer.id, manager: manager || null, content: note })
+  }
+
+  return customer
+}
+
+// ──────────────────────────────────────────────
 // Consult Logs
 // ──────────────────────────────────────────────
 export async function getConsultLogs(customerId) {
