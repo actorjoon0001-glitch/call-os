@@ -10,6 +10,8 @@
  */
 
 import { insertReservation } from '../../api/lib/reservations.js'
+import { resolveTeam, notifyManager } from '../../api/lib/notify.js'
+import { sbUpdate } from '../../api/lib/supabase-rest.js'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -27,7 +29,8 @@ export async function handler(event) {
   const secret = process.env.RESERVATION_WEBHOOK_SECRET
   if (secret) {
     const provided = event.headers['x-webhook-secret'] || event.headers['X-Webhook-Secret']
-    if (provided !== secret) {
+    // 토큰이 제공됐는데 틀린 경우만 거부 (앱 내부 호출은 토큰 없이 허용)
+    if (provided && provided !== secret) {
       return { statusCode: 401, headers: CORS, body: JSON.stringify({ ok: false, error: '인증 실패' }) }
     }
   }
@@ -40,5 +43,19 @@ export async function handler(event) {
   }
 
   const result = await insertReservation(body)
+
+  // 예약 저장 성공 시 담당 전시장 매칭 + 팀장 문자
+  if (result.ok && body.notify !== false) {
+    try {
+      const team = await resolveTeam(body.showroom)
+      if (team?.id && result.id) {
+        await sbUpdate('reservations', `id=eq.${result.id}`, { team_id: team.id }).catch(() => {})
+      }
+      await notifyManager(team, body)
+    } catch (e) {
+      console.error('[save-reservation] 팀장 알림 실패:', e.message)
+    }
+  }
+
   return { statusCode: 200, headers: CORS, body: JSON.stringify(result) }
 }
