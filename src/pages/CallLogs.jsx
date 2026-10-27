@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Phone, PhoneOff, Radio, Plus, Mic, MicOff } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
 import Modal from '../components/ui/Modal'
@@ -45,6 +46,20 @@ export default function CallLogs() {
   const [saving, setSaving] = useState(false)
   const [listening, setListening] = useState(false)
   const recRef = useRef(null)
+
+  // URL 파라미터로 통화기록 자동 열기 (예: /call-logs?log=1&phone=010...)
+  // → 안드로이드 자동화 앱에서 "통화 종료 시 이 주소 열기"로 활용
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    const log = searchParams.get('log')
+    const phone = searchParams.get('phone')
+    if (log === '1' || phone) {
+      setForm({ ...emptyForm, phone: phone || '' })
+      setModalOpen(true)
+      setSearchParams({}, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const openModal = () => { setForm(emptyForm); setModalOpen(true) }
 
